@@ -2,6 +2,7 @@
 
 (asdf:defsystem #:series-ext
   :serial t
+  :depends-on (:series :jp)
   :components ((:file "package")
                (:file "series-ext")))
 

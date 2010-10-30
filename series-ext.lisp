@@ -1,6 +1,173 @@
-;;;; /home/mc/lisp/work/series-ext/series-ext.lisp
+;;;; series-ext/series-ext.lisp
 
 (in-package #:series-ext)
 
-;;; "series-ext" goes here. Hacks and glory await!
+(defvar *original-functions* () )
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun keep-original-function (sym)
+    (pushnew (cons sym (symbol-function sym))
+             *original-functions*
+             :key #'car)))
+
+(keep-original-function 'series::scan-file)
+
+(in-package :series)
+
+(defun guess-file-encoding (path &aux (buffer (make-array 8192 :initial-element 0)))
+  (declare (dynamic-extent buffer))
+  (with-open-file (s path :direction :input :element-type '(unsigned-byte 8))
+    #+(or sbcl allegro) (read-sequence buffer s :partial-fill t)
+    #-(or sbcl allegro) (read-sequence buffer s)
+    (jp:guess buffer :jp)))
+
+;; Over write
+(defS scan-file (name &optional (reader #'read))
+    "(scan-file file-name &optional (reader #'read)
+
+SCAN-FILE opens the file named by the string FILE-NAME and applies the
+function READER to it repeatedly until the end of the file is
+reached. READER must accept the standard input function arguments
+input-stream, eof-error-p, and eof-value as its arguments. (For
+instance, reader can be read, read-preserving-white-space, read-line,
+or read-char.) If omitted, READER defaults to READ. SCAN-FILE returns
+a series of the values returned by READER, up to but not including the
+value returned when the end of the file is reached. The file is
+correctly closed, even if an abort occurs. "
+  (fragl ((name) (reader)) ((items t))
+	 ((items t)
+	  (lastcons cons (list nil))
+	  (lst list))
+	 ()
+         ((setq lst lastcons)
+	  (with-open-file (f name :direction :input :external-format (guess-file-encoding name))
+            (cl:let ((done (list nil)))
+              (loop              
+                (cl:let ((item (cl:funcall reader f nil done)))
+                  (when (eq item done)
+                    (return nil))
+		  (setq lastcons (setf (cdr lastcons) (cons item nil)))))))
+	  (setq lst (cdr lst)))
+         ((if (null lst) (go end))
+          (setq items (car lst))
+          (setq lst (cdr lst)))
+	 ()
+	 ()
+	 :context) ; file can change
+                   ; Movement should only be allowed if no unknown functions
+                   ; and constrained by sync and file operations
+ :optimizer
+  (apply-literal-frag
+    (cl:let ((file (new-var 'file)))
+      `((((reader)) ((items t))
+	 ((items t) (done t (list nil)))
+	 ()
+         ()
+         ((if (eq (setq items (cl:funcall reader ,file nil done)) done)
+              (go end)))
+	 ()
+         ((#'(lambda (code)
+              (list 'with-open-file
+                    '(,file ,name :direction :input :external-format (guess-file-encoding ,name))
+                    code)) :loop))
+	 :context)
+	,reader))))
+
+;; New
+(export 'scan-file-lines)
+(defS scan-file-lines (name)
+    "(scan-file-lines file-name)"
+  (fragl ((name)) ((items t))
+	 ((items t)
+	  (lastcons cons (list nil))
+	  (lst list))
+	 ()
+         ((setq lst lastcons)
+	  (with-open-file (f name :direction :input :external-format (guess-file-encoding name))
+            (cl:let ((done (list nil)))
+              (loop              
+                (cl:let ((item (read-line f nil done)))
+                  (when (eq item done)
+                    (return nil))
+		  (setq lastcons (setf (cdr lastcons) (cons item nil)))))))
+	  (setq lst (cdr lst)))
+         ((if (null lst) (go end))
+          (setq items (car lst))
+          (setq lst (cdr lst)))
+	 ()
+	 ()
+	 :context) ; file can change
+                   ; Movement should only be allowed if no unknown functions
+                   ; and constrained by sync and file operations
+ :optimizer
+  (apply-literal-frag
+    (cl:let ((file (new-var 'file)))
+      `((() 
+         ((items t))
+	 ((items t) (done t (list nil)))
+	 ()
+         ()
+         ((if (eq (setq items (read-line ,file nil done)) done)
+              (go end)))
+	 ()
+         ((#'(lambda (code)
+              (list 'with-open-file
+                    '(,file ,name :direction :input :external-format (guess-file-encoding ,name))
+                    code)) :loop))
+	 :context)
+	#'read-line))))
+
+#|| 
+
+ (apply-literal-frag
+ (cl:let ((file (new-var 'file)))
+   `((() ((items t))
+      ((items t) (done t (list nil)))
+      ()
+      ()
+      ;; loop
+      ((if (eq (setq items (read-line ,file nil done)) done)
+           (go end)))
+      ()
+      ;; with-
+      ((
+        ;; 1
+        #'(lambda (code)
+            (list 'with-open-file
+                  '(,file ,name :direction :input :external-format (guess-file-encoding ,name))
+                  code)) 
+        ;; 2
+          :loop))
+      :context)
+     read-line)))
+
+ (setq *OPTIMIZE-SERIES-EXPRESSIONS* t)
+
+ (CL:LET* (#:ITEMS-3483
+          (#:DONE-3484 (LIST NIL))
+          (#:LASTCONS-3480 (LIST NIL))
+          (#:LST-3481 #:LASTCONS-3480))
+  (DECLARE (TYPE CONS #:LASTCONS-3480)
+           (TYPE LIST #:LST-3481))
+  ;; with-
+  (WITH-OPEN-FILE (#:FILE-3482 "/etc/passwd" :DIRECTION :INPUT :EXTERNAL-FORMAT (GUESS-FILE-ENCODING "/etc/passwd"))
+    (TAGBODY
+     #:LL-3485
+      ;; loop
+      (IF (EQ (SETQ #:ITEMS-3483 (READ-LINE #:FILE-3482 NIL #:DONE-3484))
+              #:DONE-3484)
+          (GO END))
+      ;; tconsing
+      (SETQ #:LASTCONS-3480
+              (SETF (CDR #:LASTCONS-3480) (CONS #:ITEMS-3483 NIL)))
+      (GO #:LL-3485)
+     END))
+  ;; tconsなのでcdrを返す
+  (CDR #:LST-3481))
+
+=>
+ (cl:let* ((done (list nil)))
+  (with-open-file (file "/etc/passwd" :direction :input :external-format (guess-file-encoding "/etc/passwd"))
+    (loop for items := (read-line file nil done) :unless (eq items done)
+          :collect items)))
+||#
