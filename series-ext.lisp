@@ -22,7 +22,7 @@
     (jp:guess buffer :jp)))
 
 ;; Over write
-(defS scan-file (name &optional (reader #'read))
+(defS scan-file (name &optional (reader #'read) &key (external-format :default))
     "(scan-file file-name &optional (reader #'read)
 
 SCAN-FILE opens the file named by the string FILE-NAME and applies the
