@@ -180,5 +180,23 @@ correctly closed, even if an abort occurs. "
                     :external-format (guess-file-encoding ,file)))
 
 ;; Add
-(defun collect-firstn (num series)
-  (collect (subseries series 0 num)))
+(defmacro collect-firstn (num series)
+  `(collect (subseries ,series 0 ,num)))
+
+
+;; Add
+;; (#Mgensym)でOKらしい…
+(defmacro scan-gensyms (&optional (thing "G"))
+  `(scan-fn 'symbol
+            (lambda () (gensym ,thing))
+            #+SBCL (lambda ()
+                     (declare (optimize (speed 3) (safety 0)))
+                     (gensym ,thing))
+            #-SBCL (lambda (x)
+                     (declare (ignore x))
+                     (gensym ,thing))))
+
+(export '(scan-file-lines
+          scan-file-lines-dwim
+          scan-gensyms
+          collect-firstn))
