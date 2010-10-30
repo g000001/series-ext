@@ -40,7 +40,7 @@ correctly closed, even if an abort occurs. "
 	  (lst list))
 	 ()
          ((setq lst lastcons)
-	  (with-open-file (f name :direction :input :external-format (guess-file-encoding name))
+	  (with-open-file (f name :direction :input :external-format external-format)
             (cl:let ((done (list nil)))
               (loop              
                 (cl:let ((item (cl:funcall reader f nil done)))
@@ -68,14 +68,14 @@ correctly closed, even if an abort occurs. "
 	 ()
          ((#'(lambda (code)
               (list 'with-open-file
-                    '(,file ,name :direction :input :external-format (guess-file-encoding ,name))
+                    '(,file ,name :direction :input :external-format ,external-format)
                     code)) :loop))
 	 :context)
 	,reader))))
 
 ;; New
 (export 'scan-file-lines)
-(defS scan-file-lines (name)
+(defS scan-file-lines (name &key (external-format :default))
     "(scan-file-lines file-name)"
   (fragl ((name)) ((items t))
 	 ((items t)
@@ -83,7 +83,7 @@ correctly closed, even if an abort occurs. "
 	  (lst list))
 	 ()
          ((setq lst lastcons)
-	  (with-open-file (f name :direction :input :external-format (guess-file-encoding name))
+	  (with-open-file (f name :direction :input :external-format external-format)
             (cl:let ((done (list nil)))
               (loop              
                 (cl:let ((item (read-line f nil done)))
@@ -112,12 +112,14 @@ correctly closed, even if an abort occurs. "
 	 ()
          ((#'(lambda (code)
               (list 'with-open-file
-                    '(,file ,name :direction :input :external-format (guess-file-encoding ,name))
+                    '(,file ,name :direction :input :external-format ,external-format)
                     code)) :loop))
 	 :context)
 	#'read-line))))
 
 #|| 
+
+ (collect (scan-file-lines "/etc/passwd"))
 
  (apply-literal-frag
  (cl:let ((file (new-var 'file)))
@@ -171,3 +173,12 @@ correctly closed, even if an abort occurs. "
     (loop for items := (read-line file nil done) :unless (eq items done)
           :collect items)))
 ||#
+
+;; Add
+(defmacro scan-file-lines-dwim (file)
+  `(scan-file-lines ,file
+                    :external-format (guess-file-encoding ,file)))
+
+;; Add
+(defun collect-firstn (num series)
+  (collect (subseries series 0 num)))
