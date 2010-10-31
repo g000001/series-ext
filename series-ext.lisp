@@ -196,7 +196,100 @@ correctly closed, even if an abort occurs. "
                      (declare (ignore x))
                      (gensym ,thing))))
 
-(export '(scan-file-lines
-          scan-file-lines-dwim
-          scan-gensyms
-          collect-firstn))
+;; Add
+(defS *scan-dlist (alist &optional (test #'eql))
+  "(scan-dlist pattern list &optional (test #'eql))
+
+Creates two series containing the keys and values in an alist."
+  (fragl ((alist) (test))
+         ((keys t) (values t))
+         ((alistptr list alist)
+	  (keys t) (values t) (parent list))
+         ((keys (setf (car parent) *alt*) parent)
+          (values (setf (cdr parent) *alt*) parent))
+         ()
+         (L (if (null alistptr) (go end))
+            (setq parent (car alistptr))
+            (setq alistptr (cdr alistptr))
+            (if (or (null parent)
+                    (not (eq parent (assoc (car parent) alist :test test))))
+                (go L))
+            (setq keys (car parent))
+            (setq values (cdr parent)))
+	 ()
+	 ()
+	 :mutable))
+
+
+;; The Basic Sequence Functions
+(defun mapS (fn &rest Zs)
+  (apply #'map-fn t fn Zs))
+
+;; Generators
+(defun Gsequence (object)
+  (series object))
+
+;; Enumerators
+(defun Elist (list)
+  (scan 'list list))
+
+(defun Esublists (list)
+  (scan-sublists list))
+
+(defun Elist* (list)
+  (do ((L list (cdr L))
+       (ans () (cons (car L) ans)))
+      ((atom L) (scan
+                 (nreverse 
+                  (if (null L) 
+                      ans
+                      (cons L ans)))))))
+
+(defun Eplist (plist)
+  (scan-plist plist))
+
+(defun Ealist (alist)
+  (scan-alist alist))
+
+(defun  Erange (first last &optional (step-size 1))
+  (scan-range :from first :upto last :by step-size))
+
+(defun Rvector (Z)
+  (collect 'vector Z))
+
+(defun Efile (file)
+  (scan-file file))
+
+;; Filters and Terminators
+(defun Fpositive (Z)
+  (choose-if #'plusp Z))
+
+;; Reducers
+(defun Rlist (Z)
+  (collect 'list Z))
+
+#||
+ (defun pairwise-max (list1 list2)
+  (Rlist (mapS #'max (Elist list1) (Elist list2))))
+
+ ;; とも書けるらしい → macroか
+ (defun pairwise-max (list1 list2)
+   (Rlist (max (Elist list1) (Elist list2))))
+||#
+
+(defun Rfile (file Z)
+  (collect-file file Z))
+
+(defun Rsum (Z)
+  (collect-sum Z))
+
+(defun Rcount (Z)
+  (collect-length Z))
+
+(defun Rlast (Z)
+  (collect-last Z))
+
+(export '(collect-firstn ealist efile elist elist* eplist erange esublists fpositive
+          gsequence guess-file-encoding maps rcount rfile rlast rlist
+          rsum rvector scan-file-lines-dwim scan-gensyms))
+
