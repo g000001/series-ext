@@ -232,12 +232,40 @@ Creates two series containing the keys and values in an alist."
 
 
 ;; The Basic Sequence Functions
+
+;; series::*series-implicit-map* => T 前提
+(defmacro letS* (binds &body body)
+  (if (endp binds)
+      `(progn ,@body)
+      (let ((bind (car binds))
+            (g (gensym)))
+        (if (consp (car bind))
+            `(series::let ((,g ,(cadr bind)))
+               (series::multiple-value-bind ,(car bind)
+                                             (values-list ,g)
+                 (letS* ,(cdr binds)
+                   ,@body)))
+            `(series::let ((,(car bind) ,(cadr bind)))
+               (letS* ,(cdr binds)
+                 ,@body))))))
+
 (defun mapS (fn &rest Zs)
   (apply #'map-fn t fn Zs))
 
-;; Generators
+;; Generators 
 (defunS Gsequence (object)
   (series object))
+
+(defunS Glist (list)
+  (catenate (scan list) 
+            (series nil)))
+
+(defunS Gsublist (list)
+  (catenate (scan-sublists list) 
+            (series nil)))
+
+(defunS Grange (&optional (first 1) (step-size 1))
+  (scan-range :from first :by step-size))
 
 ;; Enumerators
 (defunS Elist (list)
@@ -264,7 +292,7 @@ Creates two series containing the keys and values in an alist."
 (defunS Ealist (alist)
   (scan-alist alist))
 
-(defunS  Erange (first last &optional (step-size 1))
+(defunS Erange (first last &optional (step-size 1))
   (scan-range :from first :upto last :by step-size))
 
 (defunS Rvector (Z)
@@ -281,18 +309,6 @@ Creates two series containing the keys and values in an alist."
 (defunS Rlist (Z)
   (collect 'list Z))
 
-#||
- (defun pairwise-max (list1 list2)
-  (Rlist (mapS #'max (Elist list1) (Elist list2))))
-
- ;; とも書けるらしい → macroか
- (defun pairwise-max (list1 list2)
-   (Rlist (max (Elist list1) (Elist list2))))
-||#
-
-(defunS Rfile (file Z)
-  (collect-file file Z))
-
 (defunS Rfile (file Z)
   (collect-file file Z))
 
@@ -305,8 +321,7 @@ Creates two series containing the keys and values in an alist."
 (defunS Rlast (Z)
   (collect-last Z))
 
-(export '(collect-firstn Ealist Efile Elist Elist* Eplist Erange Esublists Fpositive
-          Gsequence guess-file-encoding mapS Rcount Rfile Rlast Rlist
-          Rsum Rvector scan-file-lines-dwim scan-gensyms
-          Evector))
-
+(export '(collect-firstn defuns ealist efile elist elist* eplist erange
+          esublists evector fpositive glist grange gsequence gsublist
+          lets* maps rcount rfile rlast rlist rsum rvector
+          scan-file-lines-dwim scan-gensyms))
