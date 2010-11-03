@@ -14,12 +14,22 @@
 
 (in-package :series)
 
-(defun guess-file-encoding (path &aux (buffer (make-array 8192 :initial-element 0)))
-  (declare (dynamic-extent buffer))
-  (with-open-file (s path :direction :input :element-type '(unsigned-byte 8))
-    #+(or sbcl allegro) (read-sequence buffer s :partial-fill t)
-    #-(or sbcl allegro) (read-sequence buffer s)
-    (jp:guess buffer :jp)))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun guess-file-encoding (path &aux (buffer (make-array 8192 :initial-element 0)))
+    (declare (dynamic-extent buffer))
+    (with-open-file (s path :direction :input :element-type '(unsigned-byte 8))
+      #+(or sbcl allegro) (read-sequence buffer s :partial-fill t)
+      #-(or sbcl allegro) (read-sequence buffer s)
+      (jp:guess buffer :jp))) )
+
+(defmacro defunS (name (&rest lambda-list) &body body)
+  (cl:multiple-value-bind (name valnum)
+                       (if (consp name)
+                              (values-list name)
+                              (values name 1))
+    `(series::defun ,name (,@lambda-list)
+       (declare (optimizable-series-function ,valnum))
+       ,@body)))
 
 ;; Over write
 (defS scan-file (name &optional (reader #'read) &key (external-format :default))
@@ -226,17 +236,20 @@ Creates two series containing the keys and values in an alist."
   (apply #'map-fn t fn Zs))
 
 ;; Generators
-(defun Gsequence (object)
+(defunS Gsequence (object)
   (series object))
 
 ;; Enumerators
-(defun Elist (list)
+(defunS Elist (list)
   (scan 'list list))
 
-(defun Esublists (list)
+(defunS Evector (vector)
+  (scan 'vector vector))
+
+(defunS Esublists (list)
   (scan-sublists list))
 
-(defun Elist* (list)
+(defunS Elist* (list)
   (do ((L list (cdr L))
        (ans () (cons (car L) ans)))
       ((atom L) (scan
@@ -245,27 +258,27 @@ Creates two series containing the keys and values in an alist."
                       ans
                       (cons L ans)))))))
 
-(defun Eplist (plist)
+(defunS Eplist (plist)
   (scan-plist plist))
 
-(defun Ealist (alist)
+(defunS Ealist (alist)
   (scan-alist alist))
 
-(defun  Erange (first last &optional (step-size 1))
+(defunS  Erange (first last &optional (step-size 1))
   (scan-range :from first :upto last :by step-size))
 
-(defun Rvector (Z)
+(defunS Rvector (Z)
   (collect 'vector Z))
 
-(defun Efile (file)
+(defunS Efile (file)
   (scan-file file))
 
 ;; Filters and Terminators
-(defun Fpositive (Z)
+(defunS Fpositive (Z)
   (choose-if #'plusp Z))
 
 ;; Reducers
-(defun Rlist (Z)
+(defunS Rlist (Z)
   (collect 'list Z))
 
 #||
@@ -277,16 +290,19 @@ Creates two series containing the keys and values in an alist."
    (Rlist (max (Elist list1) (Elist list2))))
 ||#
 
-(defun Rfile (file Z)
+(defunS Rfile (file Z)
   (collect-file file Z))
 
-(defun Rsum (Z)
+(defunS Rfile (file Z)
+  (collect-file file Z))
+
+(defunS Rsum (Z)
   (collect-sum Z))
 
-(defun Rcount (Z)
+(defunS Rcount (Z)
   (collect-length Z))
 
-(defun Rlast (Z)
+(defunS Rlast (Z)
   (collect-last Z))
 
 (export '(collect-firstn ealist efile elist elist* eplist erange esublists fpositive
