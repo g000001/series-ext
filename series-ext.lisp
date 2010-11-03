@@ -305,7 +305,8 @@ Creates two series containing the keys and values in an alist."
 (defunS Rlast (Z)
   (collect-last Z))
 
-(export '(collect-firstn ealist efile elist elist* eplist erange esublists fpositive
-          gsequence guess-file-encoding maps rcount rfile rlast rlist
-          rsum rvector scan-file-lines-dwim scan-gensyms))
+(export '(collect-firstn Ealist Efile Elist Elist* Eplist Erange Esublists Fpositive
+          Gsequence guess-file-encoding mapS Rcount Rfile Rlast Rlist
+          Rsum Rvector scan-file-lines-dwim scan-gensyms
+          Evector))
 
