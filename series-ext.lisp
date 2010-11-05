@@ -383,7 +383,7 @@ Creates two series containing the keys and values in an alist."
           `(series::let ((,whole-name ,expression))
              ,body))))
     (defmacro series::destructuring-bindS (vars vals &body body)
-      `(destructuring-bind ,vars ,vals ,@body))))
+      `(destructuring-bind ,vars ,vals ,@body)))
 
 (in-package :series)
 
@@ -394,7 +394,8 @@ Creates two series containing the keys and values in an alist."
         `(progn ,@body)
         (let ((bind (car binds)))
           (if (consp (car bind))
-              `(series::destructuring-bindS ,(car bind) ,(cadr bind)
+              `(series::destructuring-bindS ,(car bind) 
+                   ,(cadr bind)
                  (letS* ,(cdr binds)
                    ,@body))
               `(series::let ((,(car bind) ,(cadr bind)))
