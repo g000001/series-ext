@@ -42,9 +42,77 @@
           :for i :from 1
           :collect i))
 
+(deftest letS*.0001
+  series::*series-implicit-map* 
+  T )
+
+(deftest letS*.0
+  (letS* ((a (series 'a))
+          (b (series 'b))
+          (c (series 'c))
+          (abc (list a b c)))
+    (Rlist (subseries abc 0 10)))
+  ((A B C) (A B C) (A B C) (A B C) (A B C) (A B C) (A B C) (A B C) (A B C)
+   (A B C)))
+
+(deftest letS*.1
+  (letS* ((a (series 'a))
+          (b (series 'b))
+          (c (series 'c)))
+    (letS* ((abc (list a b c)))
+      (Rlist (subseries abc 0 10))))
+  ((A B C) (A B C) (A B C) (A B C) (A B C) (A B C) (A B C) (A B C) (A B C)
+   (A B C)))
+
+(deftest letS*.2
+  (letS* ((a (series 'a)))
+    (letS* ((a (list a)))
+      (letS* ((b (series 'b)))
+        (letS* ((b (list b)))
+          (letS* ((c (series 'c)))
+            (letS* ((c (list c)))
+              (letS* ((abc (list a b c)))
+                (Rlist (subseries abc 0 10)))))))))
+  (((A) (B) (C)) ((A) (B) (C)) ((A) (B) (C)) ((A) (B) (C)) ((A) (B) (C))
+   ((A) (B) (C)) ((A) (B) (C)) ((A) (B) (C)) ((A) (B) (C)) ((A) (B) (C))))
+
+(deftest letS*.3
+  (letS* (((a b c) (list (series 'a)
+                         (series 'b)
+                         (series 'c)))
+          ((a b c) (list c b a)))
+    (Rlist (subseries (list a 0 b 2 c 3) 0 10)))
+  ((C 0 B 2 A 3) (C 0 B 2 A 3) (C 0 B 2 A 3) (C 0 B 2 A 3) (C 0 B 2 A 3)
+   (C 0 B 2 A 3) (C 0 B 2 A 3) (C 0 B 2 A 3) (C 0 B 2 A 3) (C 0 B 2 A 3)))
+
+(deftest letS*.4
+  (letS* ((a '(a b c))
+          ((a b c) (reverse a)))
+    (Rlist (subseries (list a 0 b 2 c 3) 0 10)))
+  ((C 0 B 2 A 3) (C 0 B 2 A 3) (C 0 B 2 A 3) (C 0 B 2 A 3) (C 0 B 2 A 3)
+   (C 0 B 2 A 3) (C 0 B 2 A 3) (C 0 B 2 A 3) (C 0 B 2 A 3) (C 0 B 2 A 3)) )
+
+(deftest letS*.5
+  (letS* ((a '(a b c))
+          (b '(1 2 3))
+          (ab (concatenate 'list a b)))
+    (Rlist (subseries ab 0 10)))
+  ((A B C 1 2 3) (A B C 1 2 3) (A B C 1 2 3) (A B C 1 2 3) (A B C 1 2 3)
+   (A B C 1 2 3) (A B C 1 2 3) (A B C 1 2 3) (A B C 1 2 3) (A B C 1 2 3)) )
+
+(deftest Rlist.0
+  (Rlist (subseries (series 0) 0 5))
+  (0 0 0 0 0) )
+
+#|||
+???
+ (letS* ((a '(a b c))
+          (b '(1 2 3))
+          (ab (catenate a b)))
+  (Rlist (subseries ab 0 10)))
+||||#
+
 (progn
   (do-symbols (s :series)
     (shadowing-import s))
   (do-tests))
-
-
