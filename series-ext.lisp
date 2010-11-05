@@ -387,6 +387,23 @@ Creates two series containing the keys and values in an alist."
 
 (in-package :series)
 
+#+SBCL
+(when series::*series-implicit-map* 
+  (defmacro letS* (binds &body body)
+    (if (endp binds)
+        `(progn ,@body)
+        (let ((bind (car binds))
+              (g (gensym)))
+          (if (consp (car bind))
+              `(series::let ((,g ,(cadr bind)))
+                 (series::destructuring-bindS ,(car bind)
+                     ,g
+                   (letS* ,(cdr binds)
+                     ,@body)))
+              `(series::let ((,(car bind) ,(cadr bind)))
+                 (letS* ,(cdr binds)
+                   ,@body)))))) )
+
 (export '(collect-firstn defuns ealist efile elist elist* eplist erange
           esublists evector fpositive glist grange gsequence gsublist
           lets* maps rcount rfile rlast rlist rsum rvector
