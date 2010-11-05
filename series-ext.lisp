@@ -322,8 +322,10 @@ Creates two series containing the keys and values in an alist."
   (collect-last Z))
 
 ;; destructuring-bind
+#+SBCL
 (in-package :sb-kernel)
 
+#+SBCL
 (when series::*series-implicit-map* 
   ;; FIXME この方法では、SERIES::*SERIES-IMPLICIT-MAP*を適切に扱っていない。
   ;; defsを使うべき?
@@ -364,9 +366,10 @@ Creates two series containing the keys and values in an alist."
                   documentation
                   minimum
                   maximum))))))
-
+#+SBCL
 (in-package :sb-int)
 
+#+SBCL
 (if series::*series-implicit-map* 
     (defmacro-mundanely series::destructuring-bindS (lambda-list expression &body body)
       (let ((whole-name (gensym "WHOLE")))
