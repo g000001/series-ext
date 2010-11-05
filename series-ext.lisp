@@ -321,7 +321,71 @@ Creates two series containing the keys and values in an alist."
 (defunS Rlast (Z)
   (collect-last Z))
 
+;; destructuring-bind
+(in-package :sb-kernel)
+
+(when series::*series-implicit-map* 
+  ;; FIXME この方法では、SERIES::*SERIES-IMPLICIT-MAP*を適切に扱っていない。
+  ;; defsを使うべき?
+  (defun parse-defmacroS
+         (lambda-list whole-var body name context
+                      &key
+                      (anonymousp nil)
+                      (doc-string-allowed t)
+                      ((:environment env-arg-name))
+                      ((:default-default *default-default*))
+                      (error-fun 'error)
+                      (wrap-block t))
+    (series::multiple-value-bind (forms declarations documentation)
+                                 (parse-body body :doc-string-allowed doc-string-allowed)
+      (series::let ((*arg-tests* ())
+                    (*user-lets* ())
+                    (*system-lets* ())
+                    (*ignorable-vars* ())
+                    (*env-var* nil))
+        (series::multiple-value-bind (env-arg-used minimum maximum)
+                                     (parse-defmacro-lambda-list lambda-list whole-var name context
+                                                         :error-fun error-fun
+                                                         :anonymousp anonymousp)
+          (values `(series::let* (,@(nreverse *system-lets*))
+                     ,@(when *ignorable-vars*
+                         `((declare (ignorable ,@*ignorable-vars*))))
+                     ,@*arg-tests*
+                     (series::let* (,@(when env-arg-used
+                                        `((,*env-var* ,env-arg-name)))
+                                    ,@(nreverse *user-lets*))
+                       ,@declarations
+                       ,@(if wrap-block
+                             `((block ,(fun-name-block-name name)
+                                 ,@forms))
+                             forms)))
+                  `(,@(when (and env-arg-name (not env-arg-used))
+                        `((declare (ignore ,env-arg-name)))))
+                  documentation
+                  minimum
+                  maximum))))))
+
+(in-package :sb-int)
+
+(if series::*series-implicit-map* 
+    (defmacro-mundanely series::destructuring-bindS (lambda-list expression &body body)
+      (let ((whole-name (gensym "WHOLE")))
+        (series::multiple-value-bind (body local-decls)
+                                     (sb-kernel::parse-defmacroS 
+                                      lambda-list whole-name body nil 'destructuring-bindS
+                                      :anonymousp t
+                                      :doc-string-allowed nil
+                                      :wrap-block nil)
+          (declare (ignore local-decls))
+          `(series::let ((,whole-name ,expression))
+             ,body))))
+    (defmacro series::destructuring-bindS (vars vals &body body)
+      `(destructuring-bind ,vars ,vals ,@body))))
+
+(in-package :series)
+
 (export '(collect-firstn defuns ealist efile elist elist* eplist erange
           esublists evector fpositive glist grange gsequence gsublist
           lets* maps rcount rfile rlast rlist rsum rvector
-          scan-file-lines-dwim scan-gensyms))
+          scan-file-lines-dwim scan-gensyms
+          destructuring-bindS))
