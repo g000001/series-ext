@@ -326,81 +326,74 @@ Creates two series containing the keys and values in an alist."
 (in-package :sb-kernel)
 
 #+SBCL
-(when series::*series-implicit-map* 
-  ;; FIXME この方法では、SERIES::*SERIES-IMPLICIT-MAP*を適切に扱っていない。
-  ;; defsを使うべき?
-  (defun parse-defmacroS
-         (lambda-list whole-var body name context
-                      &key
-                      (anonymousp nil)
-                      (doc-string-allowed t)
-                      ((:environment env-arg-name))
-                      ((:default-default *default-default*))
-                      (error-fun 'error)
-                      (wrap-block t))
-    (series::multiple-value-bind (forms declarations documentation)
-                                 (parse-body body :doc-string-allowed doc-string-allowed)
-      (series::let ((*arg-tests* ())
-                    (*user-lets* ())
-                    (*system-lets* ())
-                    (*ignorable-vars* ())
-                    (*env-var* nil))
-        (series::multiple-value-bind (env-arg-used minimum maximum)
-                                     (parse-defmacro-lambda-list lambda-list whole-var name context
-                                                         :error-fun error-fun
-                                                         :anonymousp anonymousp)
-          (values `(series::let* (,@(nreverse *system-lets*))
-                     ,@(when *ignorable-vars*
-                         `((declare (ignorable ,@*ignorable-vars*))))
-                     ,@*arg-tests*
-                     (series::let* (,@(when env-arg-used
-                                        `((,*env-var* ,env-arg-name)))
-                                    ,@(nreverse *user-lets*))
-                       ,@declarations
-                       ,@(if wrap-block
-                             `((block ,(fun-name-block-name name)
-                                 ,@forms))
-                             forms)))
-                  `(,@(when (and env-arg-name (not env-arg-used))
-                        `((declare (ignore ,env-arg-name)))))
-                  documentation
-                  minimum
-                  maximum))))))
+(defun parse-defmacroS
+       (lambda-list whole-var body name context
+                    &key
+                    (anonymousp nil)
+                    (doc-string-allowed t)
+                    ((:environment env-arg-name))
+                    ((:default-default *default-default*))
+                    (error-fun 'error)
+                    (wrap-block t))
+  (series::multiple-value-bind (forms declarations documentation)
+                               (parse-body body :doc-string-allowed doc-string-allowed)
+    (series::let ((*arg-tests* ())
+                  (*user-lets* ())
+                  (*system-lets* ())
+                  (*ignorable-vars* ())
+                  (*env-var* nil))
+      (series::multiple-value-bind (env-arg-used minimum maximum)
+                                   (parse-defmacro-lambda-list lambda-list whole-var name context
+                                                               :error-fun error-fun
+                                                               :anonymousp anonymousp)
+        (values `(series::let* (,@(nreverse *system-lets*))
+                   ,@(when *ignorable-vars*
+                       `((declare (ignorable ,@*ignorable-vars*))))
+                   ,@*arg-tests*
+                   (series::let* (,@(when env-arg-used
+                                      `((,*env-var* ,env-arg-name)))
+                                  ,@(nreverse *user-lets*))
+                     ,@declarations
+                     ,@(if wrap-block
+                           `((block ,(fun-name-block-name name)
+                               ,@forms))
+                           forms)))
+                `(,@(when (and env-arg-name (not env-arg-used))
+                      `((declare (ignore ,env-arg-name)))))
+                documentation
+                minimum
+                maximum)))))
 #+SBCL
 (in-package :sb-int)
 
 #+SBCL
-(if series::*series-implicit-map* 
-    (defmacro-mundanely series::destructuring-bindS (lambda-list expression &body body)
-      (let ((whole-name (gensym "WHOLE")))
-        (series::multiple-value-bind (body local-decls)
-                                     (sb-kernel::parse-defmacroS 
+(defmacro-mundanely series::destructuring-bindS (lambda-list expression &body body)
+  (let ((whole-name (gensym "WHOLE")))
+    (series::multiple-value-bind (body local-decls)
+                               (sb-kernel::parse-defmacroS 
                                       lambda-list whole-name body nil 'destructuring-bindS
                                       :anonymousp t
                                       :doc-string-allowed nil
                                       :wrap-block nil)
-          (declare (ignore local-decls))
-          `(series::let ((,whole-name ,expression))
-             ,body))))
-    (defmacro series::destructuring-bindS (vars vals &body body)
-      `(destructuring-bind ,vars ,vals ,@body)))
-
+      (declare (ignore local-decls))
+      `(series::let ((,whole-name ,expression))
+         ,body))))
+#+SBCL
 (in-package :series)
 
 #+SBCL
-(when series::*series-implicit-map* 
-  (defmacro letS* (binds &body body)
-    (if (endp binds)
-        `(progn ,@body)
-        (let ((bind (car binds)))
-          (if (consp (car bind))
-              `(series::destructuring-bindS ,(car bind) 
-                   ,(cadr bind)
-                 (letS* ,(cdr binds)
-                   ,@body))
-              `(series::let ((,(car bind) ,(cadr bind)))
-                 (letS* ,(cdr binds)
-                   ,@body)))))) )
+(defmacro letS* (binds &body body)
+  (if (endp binds)
+      `(progn ,@body)
+      (let ((bind (car binds)))
+        (if (consp (car bind))
+            `(series::destructuring-bindS ,(car bind) 
+                 ,(cadr bind)
+               (letS* ,(cdr binds)
+                 ,@body))
+            `(series::let ((,(car bind) ,(cadr bind)))
+               (letS* ,(cdr binds)
+                 ,@body))))))
 
 (export '(collect-firstn defuns ealist efile elist elist* eplist erange
           esublists evector fpositive glist grange gsequence gsublist
