@@ -84,7 +84,6 @@ correctly closed, even if an abort occurs. "
 	,reader))))
 
 ;; New
-(export 'scan-file-lines)
 (defS scan-file-lines (name &key (external-format :default))
     "(scan-file-lines file-name)"
   (fragl ((name)) ((items t))
@@ -249,10 +248,10 @@ Creates two series containing the keys and values in an alist."
                (letS* ,(cdr binds)
                  ,@body))))))
 
-(defun mapS (fn &rest Zs)
-  (apply #'map-fn t fn Zs))
+(defmacro mapS (fn &rest Zs)
+  `(map-fn t ,fn ,@Zs))
 
-;; Generators 
+;; Generators [4/4]
 (defunS Gsequence (object)
   (series object))
 
@@ -267,12 +266,9 @@ Creates two series containing the keys and values in an alist."
 (defunS Grange (&optional (first 1) (step-size 1))
   (scan-range :from first :by step-size))
 
-;; Enumerators
+;; Enumerators [8/8]
 (defunS Elist (list)
   (scan 'list list))
-
-(defunS Evector (vector)
-  (scan 'vector vector))
 
 (defunS Esublists (list)
   (scan-sublists list))
@@ -287,27 +283,52 @@ Creates two series containing the keys and values in an alist."
                       (cons L ans)))))))
 
 (defunS Eplist (plist)
-  (scan-plist plist))
+  (mapping (((key val) (scan-plist plist)))
+    (cons key val)))
 
 (defunS Ealist (alist)
-  (scan-alist alist))
+  (mapping (((key val) (scan-alist alist)))
+    (cons key val)))
 
 (defunS Erange (first last &optional (step-size 1))
   (scan-range :from first :upto last :by step-size))
 
-(defunS Rvector (Z)
-  (collect 'vector Z))
+(defunS Evector (vector)
+  (scan 'vector vector))
 
 (defunS Efile (file)
   (scan-file file))
 
-;; Filters and Terminators
+;; Filters and Terminators [4/4]
+(defunS Fselect (Z boolean-Z)
+  (choose Z boolean-Z))
+
 (defunS Fpositive (Z)
   (choose-if #'plusp Z))
 
+(defunS Fgreater (Z limit)
+  (choose-if (lambda (x) (> x limit)) Z))
+
+(defunS Tselect (Z boolean-Z)
+  (until boolean-Z Z))
+
 ;; Reducers
+(defunS Rlast (Z)
+  (collect-last Z))
+
+(defunS Rignore (Z)
+  (collect-ignore Z))
+
 (defunS Rlist (Z)
   (collect 'list Z))
+
+(defunS Rbag (Z)
+  (collect 'bag Z))
+
+#|(defunS Rlist* (Z))|#
+
+(defunS Rvector (Z)
+  (collect 'vector Z))
 
 (defunS Rfile (file Z)
   (collect-file file Z))
@@ -318,8 +339,7 @@ Creates two series containing the keys and values in an alist."
 (defunS Rcount (Z)
   (collect-length Z))
 
-(defunS Rlast (Z)
-  (collect-last Z))
+
 
 ;; destructuring-bind
 #+SBCL
@@ -336,14 +356,17 @@ Creates two series containing the keys and values in an alist."
                     (error-fun 'error)
                     (wrap-block t))
   (series::multiple-value-bind (forms declarations documentation)
-                               (parse-body body :doc-string-allowed doc-string-allowed)
+                               (parse-body body 
+                                           :doc-string-allowed doc-string-allowed)
     (series::let ((*arg-tests* ())
                   (*user-lets* ())
                   (*system-lets* ())
                   (*ignorable-vars* ())
                   (*env-var* nil))
       (series::multiple-value-bind (env-arg-used minimum maximum)
-                                   (parse-defmacro-lambda-list lambda-list whole-var name context
+                                   (parse-defmacro-lambda-list lambda-list
+                                                               whole-var
+                                                               name context
                                                                :error-fun error-fun
                                                                :anonymousp anonymousp)
         (values `(series::let* (,@(nreverse *system-lets*))
@@ -370,11 +393,14 @@ Creates two series containing the keys and values in an alist."
 (defmacro-mundanely series::destructuring-bindS (lambda-list expression &body body)
   (let ((whole-name (gensym "WHOLE")))
     (series::multiple-value-bind (body local-decls)
-                               (sb-kernel::parse-defmacroS 
-                                      lambda-list whole-name body nil 'destructuring-bindS
-                                      :anonymousp t
-                                      :doc-string-allowed nil
-                                      :wrap-block nil)
+                                 (sb-kernel::parse-defmacroS lambda-list
+                                                             whole-name
+                                                             body
+                                                             nil
+                                                             'destructuring-bindS
+                                                             :anonymousp t
+                                                             :doc-string-allowed nil
+                                                             :wrap-block nil)
       (declare (ignore local-decls))
       `(series::let ((,whole-name ,expression))
          ,body))))
@@ -388,7 +414,7 @@ Creates two series containing the keys and values in an alist."
       (let ((bind (car binds)))
         (if (consp (car bind))
             `(series::destructuring-bindS ,(car bind) 
-                 ,(cadr bind)
+                                          ,(cadr bind)
                (letS* ,(cdr binds)
                  ,@body))
             `(series::let ((,(car bind) ,(cadr bind)))
