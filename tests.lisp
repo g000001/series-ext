@@ -42,9 +42,9 @@
           :for i :from 1
           :collect i))
 
-(deftest letS*.0001
+#|(deftest letS*.0001
   series::*series-implicit-map* 
-  T )
+  T )|#
 
 (deftest letS*.0
   (letS* ((a (series 'a))
@@ -178,10 +178,6 @@
 (deftest Rbag.0
   (sort (Rbag (Elist '(1 2 3))) #'<)
   (1 2 3) )
-
-#|(deftest Rlist*.0
-  (Rlist* 1)
-  1 )|#
 
 (progn
   (do-symbols (s :series)

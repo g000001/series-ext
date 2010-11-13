@@ -407,22 +407,41 @@ Creates two series containing the keys and values in an alist."
 #+SBCL
 (in-package :series)
 
+;; FIXME compiler-letが上手く処理できていないので上書き
+(cl:defun not-expr-like-special-form-p (sym)
+  (and (symbolp sym)
+       #-series-ansi(special-form-p sym)
+       #+series-ansi(special-operator-p sym)
+       (not (member sym /expr-like-special-forms/))))
+
+(defmacro with-series-implicit-map (&body body)
+  `(compiler-let ((*series-implicit-map* 'T))
+     ,@body))
+
 #+SBCL
-(defmacro letS* (binds &body body)
+(defmacro letS*-1 (binds &body body)
   (if (endp binds)
       `(progn ,@body)
-      (let ((bind (car binds)))
+      (cl:let ((bind (car binds)))
         (if (consp (car bind))
             `(series::destructuring-bindS ,(car bind) 
                                           ,(cadr bind)
-               (letS* ,(cdr binds)
+               (letS*-1 ,(cdr binds)
                  ,@body))
             `(series::let ((,(car bind) ,(cadr bind)))
-               (letS* ,(cdr binds)
+               (letS*-1 ,(cdr binds)
                  ,@body))))))
+
+#+SBCL
+(defmacro letS* (binds &body body)
+  `(with-series-implicit-map
+     (letS*-1 ,binds
+       ,@body)))
+
 
 (export '(collect-firstn defuns ealist efile elist elist* eplist erange
           esublists evector fpositive glist grange gsequence gsublist
           lets* maps rcount rfile rlast rlist rsum rvector
           scan-file-lines-dwim scan-gensyms
-          destructuring-bindS))
+          destructuring-bindS
+          with-series-implicit-map))
