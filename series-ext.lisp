@@ -312,7 +312,7 @@ Creates two series containing the keys and values in an alist."
 (defunS Tselect (Z boolean-Z)
   (until boolean-Z Z))
 
-;; Reducers
+;; Reducers [/23]
 (defunS Rlast (Z)
   (collect-last Z))
 
@@ -327,6 +327,25 @@ Creates two series containing the keys and values in an alist."
 
 #|(defunS Rlist* (Z))|#
 
+(defunS Rnconc (Z)
+  (collect-nconc Z))
+
+(defunS Rappend (Z)
+  (collect-append Z))
+
+(defunS Rset (Z)
+  (delete-duplicates (collect 'bag Z)
+                     :test #'equal))
+
+(defunS Reqset (Z)
+  (delete-duplicates (collect 'bag Z)
+                     :test #'eq))
+
+;; Rplist
+;; Palist
+;; Reqplist
+;; Reqalist
+
 (defunS Rvector (Z)
   (collect 'vector Z))
 
@@ -336,10 +355,17 @@ Creates two series containing the keys and values in an alist."
 (defunS Rsum (Z)
   (collect-sum Z))
 
+;; Rsum$
+;; Rmax
+;; Rmin
+
 (defunS Rcount (Z)
   (collect-length Z))
 
-
+;; Rand
+;; Rand-fast
+;; Ror
+;; Ror-fast
 
 ;; destructuring-bind
 #+SBCL
@@ -439,9 +465,9 @@ Creates two series containing the keys and values in an alist."
        ,@body)))
 
 
-(export '(collect-firstn defuns ealist efile elist elist* eplist erange
-          esublists evector fpositive glist grange gsequence gsublist
-          lets* maps rcount rfile rlast rlist rsum rvector
-          scan-file-lines-dwim scan-gensyms
-          destructuring-bindS
-          with-series-implicit-map))
+(export '(COLLECT-FIRSTN DEFUNS EALIST EFILE ELIST ELIST* EPLIST ERANGE ESUBLISTS
+          EVECTOR FGREATER FPOSITIVE FSELECT GLIST GRANGE GSEQUENCE
+          GSUBLIST LETS* MAPS NOT-EXPR-LIKE-SPECIAL-FORM-P
+          RBAG RCOUNT RFILE RIGNORE RLAST RLIST RSUM
+          RVECTOR SCAN-FILE-LINES-DWIM SCAN-GENSYMS TSELECT
+          Rnconc))

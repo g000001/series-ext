@@ -179,6 +179,32 @@
   (sort (Rbag (Elist '(1 2 3))) #'<)
   (1 2 3) )
 
+;; Rlist*
+
+(deftest Rnconc.0
+  (Rnconc
+   (Elist (list
+           (list 1 2)
+           nil
+           (list 3 4))))
+  (1 2 3 4) )
+
+(deftest Rappend.0
+  (Rappend
+   (Elist (list
+           (list 1 2)
+           nil
+           (list 3 4))))
+  (1 2 3 4) )
+
+(deftest Rset.0
+  (Rset (Elist '(a a (b) (b))))
+  ((B) A) )
+
+(deftest Reqset.0
+  (Reqset (Elist '(a a (b) (b))))
+  ((B) (B) A) )
+
 (progn
   (do-symbols (s :series)
     (shadowing-import s))
