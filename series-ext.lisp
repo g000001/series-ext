@@ -126,63 +126,6 @@ correctly closed, even if an abort occurs. "
 	 :context)
 	#'read-line))))
 
-#|| 
-
- (collect (scan-file-lines "/etc/passwd"))
-
- (apply-literal-frag
- (cl:let ((file (new-var 'file)))
-   `((() ((items t))
-      ((items t) (done t (list nil)))
-      ()
-      ()
-      ;; loop
-      ((if (eq (setq items (read-line ,file nil done)) done)
-           (go end)))
-      ()
-      ;; with-
-      ((
-        ;; 1
-        #'(lambda (code)
-            (list 'with-open-file
-                  '(,file ,name :direction :input :external-format (guess-file-encoding ,name))
-                  code)) 
-        ;; 2
-          :loop))
-      :context)
-     read-line)))
-
- (setq *OPTIMIZE-SERIES-EXPRESSIONS* t)
-
- (CL:LET* (#:ITEMS-3483
-          (#:DONE-3484 (LIST NIL))
-          (#:LASTCONS-3480 (LIST NIL))
-          (#:LST-3481 #:LASTCONS-3480))
-  (DECLARE (TYPE CONS #:LASTCONS-3480)
-           (TYPE LIST #:LST-3481))
-  ;; with-
-  (WITH-OPEN-FILE (#:FILE-3482 "/etc/passwd" :DIRECTION :INPUT :EXTERNAL-FORMAT (GUESS-FILE-ENCODING "/etc/passwd"))
-    (TAGBODY
-     #:LL-3485
-      ;; loop
-      (IF (EQ (SETQ #:ITEMS-3483 (READ-LINE #:FILE-3482 NIL #:DONE-3484))
-              #:DONE-3484)
-          (GO END))
-      ;; tconsing
-      (SETQ #:LASTCONS-3480
-              (SETF (CDR #:LASTCONS-3480) (CONS #:ITEMS-3483 NIL)))
-      (GO #:LL-3485)
-     END))
-  ;; tconsなのでcdrを返す
-  (CDR #:LST-3481))
-
-=>
- (cl:let* ((done (list nil)))
-  (with-open-file (file "/etc/passwd" :direction :input :external-format (guess-file-encoding "/etc/passwd"))
-    (loop for items := (read-line file nil done) :unless (eq items done)
-          :collect items)))
-||#
-
 ;; Add
 (defmacro scan-file-lines-dwim (file)
   `(scan-file-lines ,file
@@ -231,22 +174,6 @@ Creates two series containing the keys and values in an alist."
 
 
 ;; The Basic Sequence Functions
-
-;; series::*series-implicit-map* => T 前提
-(defmacro letS* (binds &body body)
-  (if (endp binds)
-      `(progn ,@body)
-      (let ((bind (car binds))
-            (g (gensym)))
-        (if (consp (car bind))
-            `(series::let ((,g ,(cadr bind)))
-               (series::multiple-value-bind ,(car bind)
-                                             (values-list ,g)
-                 (letS* ,(cdr binds)
-                   ,@body)))
-            `(series::let ((,(car bind) ,(cadr bind)))
-               (letS* ,(cdr binds)
-                 ,@body))))))
 
 (defmacro mapS (fn &rest Zs)
   `(map-fn t ,fn ,@Zs))
@@ -464,10 +391,11 @@ Creates two series containing the keys and values in an alist."
      (letS*-1 ,binds
        ,@body)))
 
+(export '(collect-firstn defunS Ealist Efile Elist Elist* Eplist Erange Esublists
+          Evector Fgreater Fpositive Fselect Glist Grange Gsequence
+          Gsublist Lets* Maps Rappend Rbag Rcount Reqset Rfile Rignore
+          Rlast Rlist Rnconc Rset Rsum Rvector Scan-File Scan-File-Lines
+          Scan-File-Lines-Dwim Scan-Gensyms Tselect
+          With-Series-Implicit-Map))
 
-(export '(COLLECT-FIRSTN DEFUNS EALIST EFILE ELIST ELIST* EPLIST ERANGE ESUBLISTS
-          EVECTOR FGREATER FPOSITIVE FSELECT GLIST GRANGE GSEQUENCE
-          GSUBLIST LETS* MAPS NOT-EXPR-LIKE-SPECIAL-FORM-P
-          RBAG RCOUNT RFILE RIGNORE RLAST RLIST RSUM
-          RVECTOR SCAN-FILE-LINES-DWIM SCAN-GENSYMS TSELECT
-          Rnconc))
+
